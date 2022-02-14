@@ -1,0 +1,4 @@
+connection => A connection between the browser and server is established
+login => User connected to the socket
+
+join => The connected user joins a room
