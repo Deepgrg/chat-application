@@ -33,10 +33,13 @@ io.on("connection", (socket) => {
       text: `${user.username} has joined ${user.room} room`,
     });
 
+    console.log(`${user.username} has joined ${user.room} room`);
     socket.join(user.room);
+
+    //
   });
 
-  //
+  // A user sends message to the room he joined
   socket.on("chatMessage", ({ message }) => {
     const user = getUser(socket.id);
 
@@ -44,11 +47,27 @@ io.on("connection", (socket) => {
       username: user.username,
       text: message,
     });
+
+    console.log(`${user.username} sent message: ${message}`);
+  });
+
+  // A user leaves the room he joined
+  socket.on("leaveRoom", () => {
+    const user = getUser(socket.id);
+
+    socket.leave(user.room);
+    socket.broadcast.to(user.room).emit("message", {
+      username: "admin",
+      text: `${user.username} has left the room`,
+    });
+    removeUser(user.id);
+
+    console.log(`${user.username} has left the room ${user.room}`);
   });
 
   // User disconnected
   socket.on("disconnect", (reason) => {
-    console.log(`User: disconnected. Reason: ${reason}`);
+    console.log(`User disconnected. Reason: ${reason}`);
   });
 });
 
