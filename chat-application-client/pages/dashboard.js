@@ -32,9 +32,10 @@ const Dashboard = () => {
           {/*  Global chat  */}
           <Link
             href={{
-              pathname: "/globalChat",
+              pathname: "/chat",
               query: {
                 username: username,
+                room: "global",
               },
             }}
             passHref
