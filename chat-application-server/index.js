@@ -3,7 +3,16 @@ const { createServer } = require("http");
 const { Server } = require("socket.io");
 
 const { router } = require("./router");
-const { addUser, removeUser, getUser, getUsersInRoom } = require("./users");
+const {
+  addUser,
+  removeUser,
+  getUser,
+  getUsersInRoom,
+  loginUser,
+  logoutUser,
+  getAllOnlineUsers,
+  getOneOnlineUser,
+} = require("./users");
 
 const app = express();
 const httpServer = createServer(app);
@@ -16,6 +25,9 @@ const io = new Server(httpServer, {
 io.on("connection", (socket) => {
   // A new user logged in
   socket.on("login", ({ username }) => {
+    const { error, user } = loginUser(socket.id, username);
+
+    io.emit("onlineUsers", { users: getAllOnlineUsers() });
     console.log(`User: ${username} has connected`);
   });
 
@@ -36,7 +48,10 @@ io.on("connection", (socket) => {
     console.log(`${user.username} has joined ${user.room} room`);
     socket.join(user.room);
 
-    //
+    // emit the total active users of the room
+    io.to(user.room).emit("roomData", {
+      users: getUsersInRoom(user.room),
+    });
   });
 
   // A user sends message to the room he joined
@@ -60,6 +75,13 @@ io.on("connection", (socket) => {
       username: "admin",
       text: `${user.username} has left the room`,
     });
+
+    // emit (total users - current user)
+    io.to(user.room).emit("roomData", {
+      users: getUsersInRoom(user.room).filter((user) => {
+        return user.id != socket.id;
+      }),
+    });
     removeUser(user.id);
 
     console.log(`${user.username} has left the room ${user.room}`);
@@ -67,7 +89,28 @@ io.on("connection", (socket) => {
 
   // User disconnected
   socket.on("disconnect", (reason) => {
-    console.log(`User disconnected. Reason: ${reason}`);
+    const onlineUser = getOneOnlineUser(socket.id);
+    logoutUser(onlineUser.id);
+    io.emit("onlineUsers", { users: getAllOnlineUsers() });
+
+    const user = getUser(socket.id);
+    if (user) {
+      socket.leave(user.room);
+      socket.broadcast.to(user.room).emit("message", {
+        username: "admin",
+        text: `${user.username} has left the room`,
+      });
+
+      // emit (total users - current user)
+      io.to(user.room).emit("roomData", {
+        users: getUsersInRoom(user.room).filter((user) => {
+          return user.id != socket.id;
+        }),
+      });
+      removeUser(user.id);
+    }
+
+    console.log(`User: ${onlineUser.username} disconnected. Reason: ${reason}`);
   });
 });
 
